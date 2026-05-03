@@ -1,4 +1,4 @@
-package task.backend.api;
+package task.backend.api.model;
 
 public enum TaskStatus {
     IN_PROGRESS,

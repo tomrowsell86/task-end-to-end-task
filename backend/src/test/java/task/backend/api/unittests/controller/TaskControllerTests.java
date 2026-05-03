@@ -9,37 +9,58 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.SecurityConfig;
+import org.springframework.security.test.context.annotation.SecurityTestExecutionListeners;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import task.backend.api.CreateTaskRequest;
-import task.backend.api.CreateTaskResponse;
-import task.backend.api.TaskEntity;
-import task.backend.api.TaskStatus;
 import task.backend.api.controller.TaskController;
 import task.backend.api.mapper.TaskMapper;
-import task.backend.api.repository.TaskRepository;;
+import task.backend.api.model.CreateTaskRequest;
+import task.backend.api.model.CreateTaskResponse;
+import task.backend.api.model.TaskEntity;
+import task.backend.api.model.TaskStatus;
+import task.backend.api.repository.TaskRepository;
 
-@WebMvcTest(controllers = TaskController.class,
-                excludeAutoConfiguration = SecurityAutoConfiguration.class)
+@WebMvcTest(controllers = TaskController.class)
+// @SecurityTestExecutionListeners
+// @ContextConfiguration(classes = SecurityConfig.class)
 @ExtendWith(MockitoExtension.class)
 public class TaskControllerTests {
-
-        
-        @Autowired
         private MockMvc mockMvc;
+
+        @BeforeEach
+        void beforeEach() {
+                mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                                .apply(springSecurity()).build();
+        }
+
+        @MockBean
+        private SecurityConfig config;
+
+        @InjectMocks
+        private TaskController controller;
 
         @MockBean
         private TaskRepository repository;
@@ -50,6 +71,7 @@ public class TaskControllerTests {
         @Autowired
         private ObjectMapper objectMapper;
 
+        @WithMockUser
         @Test
         void givenNewTaskRequest_thenServiceExecutesSave()
                         throws JsonProcessingException, Exception {
@@ -57,7 +79,7 @@ public class TaskControllerTests {
                 LocalDate dueDate = LocalDate.of(2020, 12, 12);
 
                 UUID expectedTaskId = UUID.randomUUID();
-                
+
                 TaskEntity expectedSavedEntity = TaskEntity.builder().description("description")
                                 .dueDate(dueDate).status(TaskStatus.IN_PROGRESS)
                                 .title("Submit Form").build();
@@ -78,11 +100,12 @@ public class TaskControllerTests {
                                         .content(writeValueAsString))
                                         .andExpectAll(result -> assertThat(
                                                         result.getResponse().getStatus())
-                                                                        .isEqualTo(201),
+                                                        .isEqualTo(201),
                                                         result -> objectMapper.readValue(result
                                                                         .getResponse()
                                                                         .getContentAsString(),
-                                                                        new TypeReference<CreateTaskResponse>() {}));
+                                                                        new TypeReference<CreateTaskResponse>() {
+                                                                        }));
                 });
 
         }
